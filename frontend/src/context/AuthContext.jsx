@@ -10,11 +10,11 @@ export const AuthProvider = ({ children }) => {
   });
   const [token, setToken] = useState(() => localStorage.getItem('neurolens_token'));
   const [loading, setLoading] = useState(true);
-  const [geminiApiKey, setGeminiApiKeyState] = useState(() => {
-    return localStorage.getItem('neurolens_gemini_key') || import.meta.env.VITE_GEMINI_API_KEY || '';
-  });
 
   useEffect(() => {
+    // Clear any obsolete localStorage keys from previous iterations
+    localStorage.removeItem('neurolens_gemini_key');
+
     const checkAuth = async () => {
       if (token) {
         try {
@@ -41,26 +41,11 @@ export const AuthProvider = ({ children }) => {
     return userData;
   };
 
-  const register = async (name, email, password, role = 'doctor') => {
-    const res = await api.post('/auth/register', { name, email, password, role });
-    const { access_token, user: userData } = res.data;
-    localStorage.setItem('neurolens_token', access_token);
-    localStorage.setItem('neurolens_user', JSON.stringify(userData));
-    setToken(access_token);
-    setUser(userData);
-    return userData;
-  };
-
   const logout = () => {
     localStorage.removeItem('neurolens_token');
     localStorage.removeItem('neurolens_user');
     setToken(null);
     setUser(null);
-  };
-
-  const updateGeminiApiKey = (key) => {
-    localStorage.setItem('neurolens_gemini_key', key);
-    setGeminiApiKeyState(key);
   };
 
   return (
@@ -69,11 +54,11 @@ export const AuthProvider = ({ children }) => {
       token,
       loading,
       login,
-      register,
       logout,
-      geminiApiKey,
-      updateGeminiApiKey,
-      isAuthenticated: !!token
+      isAuthenticated: !!token,
+      isAdmin: user?.role === 'admin',
+      isHospital: user?.role === 'hospital',
+      clientId: user?.client_id || null
     }}>
       {children}
     </AuthContext.Provider>

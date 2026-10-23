@@ -3,16 +3,17 @@ from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
 
 class UserBase(BaseModel):
-    name: str = Field(..., example="Dr. Sarah Connor")
-    email: EmailStr = Field(..., example="sarah@neurolens.med")
-    role: str = Field("doctor", example="doctor") # doctor, patient, admin
+    name: str = Field(..., example="System Administrator")
+    email: EmailStr = Field(..., example="admin@neurolens.org")
+    role: str = Field(..., example="admin") # "admin" or "hospital"
+    client_id: Optional[str] = Field(None, example="hospital_1") # Set strictly for hospital role
 
 class UserCreate(UserBase):
-    password: str = Field(..., min_length=6, example="Password123!")
+    password: str = Field(..., min_length=6, example="SecurePassword123!")
 
 class UserLogin(BaseModel):
-    email: EmailStr = Field(..., example="sarah@neurolens.med")
-    password: str = Field(..., example="Password123!")
+    email: EmailStr = Field(..., example="admin@neurolens.org")
+    password: str = Field(..., example="SecurePassword123!")
 
 class UserResponse(UserBase):
     id: str = Field(..., alias="_id")
@@ -28,5 +29,6 @@ class Token(BaseModel):
     user: UserResponse
 
 class TokenData(BaseModel):
-    email: Optional[str] = None
+    user_id: Optional[str] = None
     role: Optional[str] = None
+    client_id: Optional[str] = None

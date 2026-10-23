@@ -1,58 +1,84 @@
 @import "tailwindcss";
 
-@layer base {
-  :root {
-    --bg-primary: #0b0f19;
-    --bg-secondary: #111827;
-    --bg-card: #1f2937;
-    --accent-blue: #3b82f6;
-    --accent-cyan: #06b6d4;
-    --accent-purple: #8b5cf6;
-    --text-primary: #f9fafb;
-    --text-secondary: #9ca3af;
-  }
-
-  body {
-    background-color: #0b0f17;
-    color: #f3f4f6;
-    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    min-height: 100vh;
-    margin: 0;
-  }
+:root {
+  /* NeuroLens Official Research Palette */
+  --nl-pale-blue: #99CDD8;
+  --nl-mint: #DAEBE3;
+  --nl-warm-cream: #FDE8D3;
+  --nl-muted-coral: #F5C3B2;
+  --nl-sage: #CFD6C4;
+  --nl-muted-forest: #657166;
+  
+  /* Neutral surfaces and text */
+  --nl-bg-canvas: #F8FBF9;
+  --nl-bg-surface: #FFFFFF;
+  --nl-bg-card: #F2F8F5;
+  --nl-border: #DDE6E0;
+  --nl-border-strong: #BDCFC6;
+  --nl-text-main: #243026;
+  --nl-text-muted: #566458;
+  --nl-primary: #3B869B;
+  --nl-primary-hover: #2F6F81;
 }
 
-.glass-panel {
-  background: rgba(17, 24, 39, 0.75);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+body {
+  background-color: var(--nl-bg-canvas);
+  color: var(--nl-text-main);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  min-height: 100vh;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
 }
 
-.glass-card {
-  background: rgba(31, 41, 55, 0.6);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+.nl-card {
+  background: var(--nl-bg-surface);
+  border: 1px solid var(--nl-border);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(36, 48, 38, 0.05);
+  transition: all 0.2s ease;
 }
 
-.glow-cyan {
-  box-shadow: 0 0 25px -5px rgba(6, 182, 212, 0.25);
+.nl-card-hover:hover {
+  border-color: var(--nl-pale-blue);
+  box-shadow: 0 4px 12px rgba(153, 205, 216, 0.2);
 }
 
-.glow-blue {
-  box-shadow: 0 0 25px -5px rgba(59, 130, 246, 0.25);
+.badge-mint {
+  background-color: #E2F3EC;
+  color: #1F5943;
+  border: 1px solid #C4E6D7;
 }
 
-/* Custom Scrollbar */
+.badge-coral {
+  background-color: #FDF1ED;
+  color: #8C3B25;
+  border: 1px solid #F8D3C8;
+}
+
+.badge-blue {
+  background-color: #E9F4F7;
+  color: #216173;
+  border: 1px solid #C6E4EB;
+}
+
+.badge-sage {
+  background-color: #EEF2EB;
+  color: #435245;
+  border: 1px solid #D5DEC9;
+}
+
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0b0f17;
+  background: var(--nl-bg-canvas);
 }
 ::-webkit-scrollbar-thumb {
-  background: #1f2937;
-  border-radius: 3px;
+  background: #CBD7CE;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #374151;
+  background: #A6B9AA;
 }

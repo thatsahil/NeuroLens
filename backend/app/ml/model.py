@@ -2,27 +2,28 @@ import torch
 import torch.nn as nn
 from torchvision import models
 
-CLASS_NAMES = ["NonDemented", "VeryMildDemented", "MildDemented", "ModerateDemented"]
-NUM_CLASSES = len(CLASS_NAMES)
+# Exact explicit class mapping from verified Global Round 1 federated experiment
+CLASS_MAPPING = {
+    "Mild Dementia": 0,
+    "Moderate Dementia": 1,
+    "Non Demented": 2,
+    "Very mild Dementia": 3
+}
 
-def build_densenet121_model(num_classes: int = NUM_CLASSES, pretrained: bool = True) -> nn.Module:
+# Inverted mapping for prediction display
+IDX_TO_CLASS = {v: k for k, v in CLASS_MAPPING.items()}
+NUM_CLASSES = len(CLASS_MAPPING)
+
+def build_federated_densenet121(pretrained: bool = False) -> nn.Module:
     """
-    Builds DenseNet121 model architecture adapted for Alzheimer's MRI 4-class classification.
+    Creates the DenseNet121 architecture strictly compatible with the federated checkpoint:
+    Single Linear layer: Linear(1024, 4)
     """
-    if hasattr(models, 'densenet121'):
-        try:
-            weights = models.DenseNet121_Weights.DEFAULT if pretrained else None
-            model = models.densenet121(weights=weights)
-        except Exception:
-            model = models.densenet121(pretrained=pretrained)
+    if pretrained:
+        weights = models.DenseNet121_Weights.DEFAULT
+        model = models.densenet121(weights=weights)
     else:
-        model = models.densenet121(pretrained=pretrained)
+        model = models.densenet121(weights=None)
         
-    in_features = model.classifier.in_features
-    model.classifier = nn.Sequential(
-        nn.Linear(in_features, 512),
-        nn.ReLU(),
-        nn.Dropout(0.3),
-        nn.Linear(512, num_classes)
-    )
+    model.classifier = nn.Linear(1024, NUM_CLASSES)
     return model

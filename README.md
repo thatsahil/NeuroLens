@@ -1,69 +1,78 @@
-# NeuroLens — Federated MRI Classification Simulation
+# NeuroLens — Federated MRI Classification Research Platform
 
-NeuroLens is a research/education web platform for experimenting with federated learning on an existing four-class MRI image-folder dataset. It simulates three hospital clients, performs local training and FedAvg aggregation, tracks global model versions, and displays actual experiment history.
+NeuroLens is a federated-learning research dashboard designed to explore multi-client collaborative training and model aggregation on four-class MRI dementia data. It provides role-specific workspaces for a central administrator and three institutional hospital partitions (`hospital_1`, `hospital_2`, `hospital_3`), manages model lineage from Global Round 0 to Round 1 (DenseNet121 FedAvg), and provides append-only security auditing.
 
-**Scope note:** the three hospitals are simulated data partitions on one machine. This project is not a clinically validated diagnostic system and the simulation does not provide formal privacy guarantees.
+> **Research Scope & Limitations:**
+> The three hospital clients are simulated local data partitions on a single machine for research demonstration. This prototype is not a clinically certified medical device and does not claim patient-level generalization or formal differential privacy.
 
-## Planned/implemented core capabilities
+---
 
-- Admin research workspace for dataset audits, experiment configuration, rounds, client status and model versions.
-- Three fixed hospital client workspaces with client-scoped visibility.
-- Local PyTorch training and federated averaging via Flower/FedAvg or a tested equivalent.
-- Persisted experiment and round status, local/global metrics, checkpoint hashes and audit events.
-- Reproducible dataset audit and split manifests, kept outside source control.
-- Centralized baseline versus federated comparison using the same held-out data.
+## Architecture & Technology Stack
 
-Feature status must follow the implementation; do not claim a capability is completed until it works end-to-end.
+- **Frontend**: React 19, Vite, React Router 7, Axios, Recharts, Lucide React, Tailwind CSS with the official research palette (`#99CDD8`, `#DAEBE3`, `#FDE8D3`, `#F5C3B2`, `#CFD6C4`, `#657166`).
+- **Backend**: FastAPI, PyTorch 2.x, Torchvision, Pydantic v2, Motor / PyMongo, PyJWT, passlib/bcrypt.
+- **Model Architecture**: Exact federated DenseNet121 with single `Linear(1024, 4)` head and strict class mapping (`Mild Dementia`: 0, `Moderate Dementia`: 1, `Non Demented`: 2, `Very mild Dementia`: 3).
+- **Federation Strategy**: Sample-count-weighted Federated Averaging (FedAvg).
 
-## Stack
+---
 
-- Frontend: React, Vite, React Router, Axios, Recharts, Lucide React.
-- Backend: FastAPI, PyTorch/Torchvision, Pydantic, MongoDB Motor, JWT/password hashing.
-- Federated engine: Flower/FedAvg, with dependency versions pinned for compatibility.
-- Persistence: MongoDB for metadata; private configured artifact storage for checkpoints.
-- Local development: frontend and backend can run as separate processes; the training worker must run outside HTTP request handlers.
+## Verified Seeded Accounts
 
-## Quick start
+The application provides four fixed research accounts. Public self-registration is permanently disabled:
 
-### Backend
+| Role | Account Email | Initial Credentials | Workspace Scope |
+|---|---|---|---|
+| Central Admin | `admin@neurolens.org` | `AdminSecurePassword2026!` | Global overview, experiments, models, audit logs |
+| Hospital Alpha | `hospital1@neurolens.org` | `Hospital1Password2026!` | Scoped strictly to `hospital_1` shard |
+| Hospital Beta | `hospital2@neurolens.org` | `Hospital2Password2026!` | Scoped strictly to `hospital_2` shard |
+| Hospital Gamma | `hospital3@neurolens.org` | `Hospital3Password2026!` | Scoped strictly to `hospital_3` shard |
 
-```bash
+---
+
+## Local Developer Setup (Zero Virtual Environment)
+
+As per system architectural constraints, **do not create a Python virtual environment** (`venv`, `.venv`, or `conda`). Run directly against the active Python installation.
+
+### 1. Backend Setup & Seeding
+
+```powershell
+# Verify Python and Pip
+python --version
+python -m pip --version
+
+# Install dependencies if not already present in active Python
+python -m pip install -r backend/requirements.txt
+
+# Ensure backend/.env exists (copied from backend/.env.example)
+Copy-Item backend/.env.example backend/.env
+
+# Seed the 4 fixed accounts, initial model metadata and hospital entities
+python backend/app/scripts/seed_users.py
+python backend/app/scripts/register_initial_models.py
+
+# Launch FastAPI backend server
 cd backend
-python -m venv .venv
-# Activate the virtual environment using your OS-specific command.
-pip install -r requirements.txt
-# Configure backend environment values from the current .env.example and docs.
-uvicorn app.main:app --reload --port 8000
+python -m uvicorn app.main:app --reload --port 8000
 ```
 
-### Frontend
+Backend endpoints:
+- Swagger Docs: `http://localhost:8000/docs`
+- Health check: `http://localhost:8000/api/v1/health`
 
-```bash
+### 2. Frontend Setup
+
+In a separate terminal:
+
+```powershell
 cd frontend
 npm install
 npm run dev
 ```
 
-The exact environment variables and dataset-audit commands must be documented in the backend and dataset documentation as implementation lands. Never commit real .env files, credentials, dataset files, derived images, manifests containing private local paths, or checkpoints.
+Open `http://localhost:5173` in your browser.
 
-## Dataset setup and experiment protocol
+---
 
-The existing local four-class dataset has folders named `Non Demented`, `Very mild Dementia`, `Mild Dementia`, and `Moderate Dementia`. Configure its root through a backend environment variable such as `NEUROLENS_DATASET_ROOT`; do not hardcode a developer-specific Windows path.
+## Scientific Transparency & Evaluation
 
-Before training, audit images, counts, corrupt files, hashes, duplicates and possible source/augmentation relationships. Split grouped source images into a target 70% training / 15% validation / 15% test, then divide the training portion into three clients. Use held-out validation/test data for all comparisons. Details: [Dataset and Federation Protocol](docs/dataset-and-federation.md).
-
-Do not assume that a directory named `oasis-1 augmented` is the official raw OASIS-1 release. Record provenance uncertainty in the experiment. The old DenseNet121 benchmark is not a current result on this dataset.
-
-## Architecture and API
-
-- [Architecture](docs/architecture.md)
-- [API contract](docs/api.md)
-- [Model and evaluation protocol](docs/model.md)
-- [Dataset and federation protocol](docs/dataset-and-federation.md)
-- [Antigravity implementation instructions](docs/instructions.md)
-- [Backend notes](backend/README.md)
-- [ML directory notes](ml/README.md)
-
-## Scientific and privacy limitations
-
-This is a single-machine simulation of three clients, not a live multi-hospital deployment. Data partitions and source IDs depend on the audit. If patient IDs do not exist, patient-level generalization cannot be claimed. Model updates may leak information; this version does not implement secure aggregation or differential privacy. Always report actual evaluation protocol and per-class metrics. Do not present a model output as a confirmed diagnosis.
+Global Round 1 was structurally validated against the single-layer DenseNet121 architecture. Central evaluation metrics are explicitly marked as **"Not evaluated"** until an evaluation protocol is executed over the centralized held-out validation set. No simulated or fabricated accuracy curves are shown.
