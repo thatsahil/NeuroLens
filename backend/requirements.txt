@@ -1,11 +1,14 @@
+--index-url https://download.pytorch.org/whl/cpu
+--extra-index-url https://pypi.org/simple
+
 fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
 pydantic>=2.6.0
 pydantic-settings>=2.1.0
 pymongo>=4.6.0
 motor>=3.3.0
-torch>=2.0.0
-torchvision>=0.15.0
+torch==2.15.0+cpu
+torchvision==0.29.2
 pillow>=10.2.0
 python-multipart>=0.0.9
 pyjwt>=2.8.0
