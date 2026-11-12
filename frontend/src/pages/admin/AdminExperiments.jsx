@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { GitBranch, Plus, X, Play, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { GitBranch, Plus, X, Play, AlertCircle, CheckCircle2, Calendar } from 'lucide-react';
 import api from '../../services/api';
 
 export default function AdminExperiments() {
@@ -18,8 +18,9 @@ export default function AdminExperiments() {
   const [actionMsg, setActionMsg] = useState('');
 
   const fetchExperiments = () => {
-    api.get('/experiments')
-      .then(res => {
+    api
+      .get('/experiments')
+      .then((res) => {
         setExperiments(res.data);
         setLoading(false);
       })
@@ -35,7 +36,7 @@ export default function AdminExperiments() {
     try {
       await api.post('/experiments', form);
       setShowModal(false);
-      setActionMsg('Experiment queued successfully. Note: app does not auto-train without explicit worker execution.');
+      setActionMsg('Experiment trial queued successfully.');
       fetchExperiments();
     } catch (err) {
       alert(err.response?.data?.detail || 'Failed to create experiment');
@@ -53,158 +54,153 @@ export default function AdminExperiments() {
   };
 
   return (
-    <div className="p-8 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 max-w-7xl mx-auto py-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Federated Rounds & Experiments</h2>
-          <p className="text-sm text-[var(--nl-muted-forest)] mt-1">
-            Configure future federation rounds. No training runs automatically on startup.
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1 rounded-full text-xs font-semibold badge-teal">
+              Orchestration
+            </span>
+            <span className="text-xs font-mono text-slate-500">FedAvg Rounds</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-2">
+            Federated Rounds & Experiments
+          </h1>
+          <p className="text-sm text-slate-600 mt-1">
+            Configure multi-hospital training iterations, hyperparameter boundaries, and trial state.
           </p>
         </div>
+
         <button
           onClick={() => setShowModal(true)}
-          className="px-4 py-2 bg-[var(--nl-primary)] hover:bg-[var(--nl-primary-hover)] text-white text-sm font-semibold rounded-lg shadow-sm flex items-center gap-2 transition"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm transition-all cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          Configure Future Round
+          <span>Queue Next Round</span>
         </button>
       </div>
 
       {actionMsg && (
-        <div className="p-4 bg-[var(--nl-mint)]/40 border border-emerald-300 rounded-xl text-emerald-900 text-sm flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-700" />
+        <div className="p-3.5 rounded-xl bg-teal-50 border border-teal-200 text-teal-800 text-xs flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
           <span>{actionMsg}</span>
         </div>
       )}
 
       {/* Experiments List */}
       <div className="space-y-4">
-        {experiments.map(exp => (
-          <div key={exp.id} className="nl-card p-6 bg-white border border-[var(--nl-border)]">
-            <div className="flex items-start justify-between">
+        {experiments.map((exp) => (
+          <div key={exp.id} className="apple-card p-6 bg-white border border-slate-200">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-gray-900 text-base">{exp.name}</h3>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                    exp.status === 'completed' ? 'badge-mint' :
-                    exp.status === 'queued' ? 'badge-blue' :
-                    exp.status === 'cancelled' ? 'badge-coral' : 'badge-sage'
-                  }`}>
-                    {exp.status.toUpperCase()}
+                  <h3 className="font-bold text-slate-900 text-base">{exp.name}</h3>
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                      exp.status === 'completed'
+                        ? 'badge-teal'
+                        : exp.status === 'in_progress'
+                        ? 'badge-blue'
+                        : exp.status === 'cancelled'
+                        ? 'badge-rose'
+                        : 'badge-slate'
+                    }`}
+                  >
+                    {exp.status}
                   </span>
                 </div>
-                <p className="text-xs text-[var(--nl-muted-forest)] mt-1">
-                  Target Round: {exp.current_round} • Aggregation: {exp.aggregation_method} • Parent: {exp.parent_model}
-                </p>
+                <p className="text-xs text-slate-600 mt-1">{exp.description}</p>
+                <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-500">
+                  <span>Target Round: <strong className="text-slate-800">{exp.target_round}</strong></span>
+                  <span>Batch Size: <strong className="text-slate-800">{exp.batch_size}</strong></span>
+                  <span>Learning Rate: <strong className="font-mono text-slate-800">{exp.learning_rate}</strong></span>
+                </div>
               </div>
 
-              {exp.status === 'queued' && (
+              {exp.status === 'pending' && (
                 <button
                   onClick={() => handleCancel(exp.id)}
-                  className="px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition"
+                  className="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-medium cursor-pointer"
                 >
-                  Cancel Run
+                  Cancel
                 </button>
               )}
-            </div>
-
-            <div className="mt-4 pt-4 border-t border-[var(--nl-border)] grid grid-cols-2 md:grid-cols-4 gap-4 text-xs text-gray-600">
-              <div>
-                <span className="text-[var(--nl-muted-forest)] block">Participating Shards</span>
-                <span className="font-semibold text-gray-900">{exp.participating_clients?.join(', ')}</span>
-              </div>
-              <div>
-                <span className="text-[var(--nl-muted-forest)] block">Local Epochs</span>
-                <span className="font-semibold text-gray-900">{exp.epochs_per_client || 3} epochs</span>
-              </div>
-              <div>
-                <span className="text-[var(--nl-muted-forest)] block">Batch Size</span>
-                <span className="font-semibold text-gray-900">{exp.batch_size || 32}</span>
-              </div>
-              <div>
-                <span className="text-[var(--nl-muted-forest)] block">Created At</span>
-                <span className="text-gray-900">{new Date(exp.created_at).toLocaleString()}</span>
-              </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Create Experiment Modal */}
+      {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg bg-white rounded-xl shadow-xl border border-[var(--nl-border)] overflow-hidden">
-            <div className="px-6 py-4 bg-[var(--nl-mint)]/40 border-b border-[var(--nl-border)] flex items-center justify-between">
-              <h3 className="font-bold text-gray-900 text-sm">Configure Future Federation Round</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 text-base">Configure New Federated Round</h3>
+              <button
+                onClick={() => setShowModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
+            <form onSubmit={handleCreate} className="space-y-4 text-xs">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Experiment Name</label>
+                <label className="block font-semibold text-slate-700 mb-1">Experiment Name</label>
                 <input
                   type="text"
                   required
                   value={form.name}
-                  onChange={e => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--nl-pale-blue)]"
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Target Round Index</label>
+                <label className="block font-semibold text-slate-700 mb-1">Description</label>
                 <input
-                  type="number"
-                  min="2"
-                  value={form.target_round}
-                  onChange={e => setForm({ ...form, target_round: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--nl-pale-blue)]"
+                  type="text"
+                  required
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Epochs Per Client</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Target Round</label>
                   <input
                     type="number"
-                    min="1"
-                    max="10"
+                    value={form.target_round}
+                    onChange={(e) => setForm({ ...form, target_round: Number(e.target.value) })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Epochs Per Client</label>
+                  <input
+                    type="number"
                     value={form.epochs_per_client}
-                    onChange={e => setForm({ ...form, epochs_per_client: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--nl-pale-blue)]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Batch Size</label>
-                  <input
-                    type="number"
-                    value={form.batch_size}
-                    onChange={e => setForm({ ...form, batch_size: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--nl-pale-blue)]"
+                    onChange={(e) => setForm({ ...form, epochs_per_client: Number(e.target.value) })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none"
                   />
                 </div>
               </div>
 
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 text-amber-700 mt-0.5" />
-                <span>Notice: Creating this configuration registers a queued round. Automatic execution on startup is strictly disabled.</span>
-              </div>
-
-              <div className="pt-4 flex justify-end gap-2 border-t border-[var(--nl-border)]">
+              <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[var(--nl-primary)] hover:bg-[var(--nl-primary-hover)] text-white text-sm font-semibold rounded-lg shadow-sm"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer"
                 >
-                  Save Configuration
+                  Queue Round
                 </button>
               </div>
             </form>

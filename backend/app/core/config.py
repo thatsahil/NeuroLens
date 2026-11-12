@@ -16,9 +16,14 @@ class Settings(BaseSettings):
     MONGODB_URL: str = Field(default="mongodb://localhost:27017")
     DATABASE_NAME: str = Field(default="neurolens_federated_db")
     
+    # Centralized DenseNet121 Inference Model & Checkpoint
+    CENTRALIZED_MODEL_PATH: str = Field(default="app/ml/weights/densenet121_best.pth")
+    EXPECTED_CENTRALIZED_SHA256: str = "f00e9d22212e68fadae8c50dc6d84cbe25727485cd9a55319d87889044eb43a8"
+    
     # Federated Artifact Root
     NEUROLENS_ARTIFACT_ROOT: str = Field(default="artifacts")
-    ACTIVE_MODEL_PATH: str = Field(default="artifacts/global_models/global_model_round_001.pth")
+    ACTIVE_MODEL_PATH: str = Field(default="app/ml/weights/densenet121_best.pth")
+    MODEL_PATH: str = Field(default="app/ml/weights/densenet121_best.pth")
     
     # Optional Gemini AI Assistant (Backend-only credentials)
     GEMINI_API_KEY: str = Field(default="")

@@ -9,69 +9,39 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from app.ml.model import build_federated_densenet121, CLASS_MAPPING, IDX_TO_CLASS
-from app.ml.preprocessing import preprocess_image
+from app.ml.model import CLASS_MAPPING, IDX_TO_CLASS, NUM_CLASSES
+from app.ml.preprocessing import preprocess_image, resize_with_black_padding
 from app.core.config import settings
+from app.services.model_service import model_registry
 
 logger = logging.getLogger("neurolens.xai")
 
 class HiResCAMClassifier:
-    def __init__(self, weights_path: str = None):
-        self.weights_path = weights_path or "app/ml/weights/densenet121.pth"
+    def __init__(self):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = None
-        self.is_loaded = False
-        self._load()
 
-    def _load(self):
-        try:
-            self.model = build_federated_densenet121(pretrained=False)
-            
-            # Resolve relative path if needed
-            p = self.weights_path
-            if not os.path.exists(p) and os.path.exists(os.path.join("backend", p)):
-                p = os.path.join("backend", p)
-            elif not os.path.exists(p) and os.path.exists(os.path.join("..", p)):
-                p = os.path.join("..", p)
+    @property
+    def model(self) -> torch.nn.Module:
+        """
+        Reuses the single centralized authoritative model instance from model_registry.
+        Never initializes independent random weights.
+        """
+        return model_registry.get_loaded_model()
 
-            if os.path.exists(p):
-                logger.info(f"HiResCAM loading weights from: {p}")
-                checkpoint = torch.load(p, map_location=self.device)
-                if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
-                    state_dict = checkpoint["state_dict"]
-                elif isinstance(checkpoint, dict):
-                    state_dict = checkpoint
-                else:
-                    state_dict = checkpoint.state_dict()
-                
-                # Check classifier dimensions
-                if "classifier.weight" in state_dict and state_dict["classifier.weight"].shape == (4, 1024):
-                    self.model.load_state_dict(state_dict, strict=True)
-                else:
-                    # In case of 2-layer legacy checkpoint, load feature backbone only
-                    features_dict = {k: v for k, v in state_dict.items() if not k.startswith("classifier")}
-                    self.model.load_state_dict(features_dict, strict=False)
-            else:
-                logger.warning(f"No weights file found at {p}. Initializing default DenseNet121 architecture.")
-
-            self.model.to(self.device)
-            self.model.eval()
-            self.is_loaded = True
-        except Exception as e:
-            logger.error(f"Error loading HiResCAM model: {e}")
-            self.model = build_federated_densenet121(pretrained=False)
-            self.model.to(self.device)
-            self.model.eval()
-            self.is_loaded = True
+    @property
+    def is_loaded(self) -> bool:
+        return model_registry.status == "ready" and model_registry.active_model is not None
 
     def generate_hirescam_overlay(self, original_pil: Image.Image, cam_matrix: np.ndarray) -> str:
         """
         Creates a heatmap overlay without needing external matplotlib or cv2.
-        Applies a high-contrast Jet-like colormap and blends with original grayscale/RGB MRI.
+        Applies a high-contrast Jet-like colormap and blends with identically preprocessed
+        (aspect-ratio-preserving with black canvas) 224x224 image so the overlay aligns
+        strictly with the model input tensor.
         """
-        # Resize original image to 224x224
-        img_resized = original_pil.convert("RGB").resize((224, 224))
-        img_np = np.array(img_resized, dtype=np.float32) / 255.0
+        # Align canvas with inference preprocessing (224x224 black canvas)
+        canvas_img = resize_with_black_padding(original_pil, target_size=224)
+        img_np = np.array(canvas_img, dtype=np.float32) / 255.0
 
         # Simple Jet colormap generator in pure NumPy
         # cam_matrix is [0, 1]
@@ -81,7 +51,7 @@ class HiResCAMClassifier:
         b = np.clip(1.5 - np.abs(x * 4.0 - 1.0), 0.0, 1.0)
         heatmap = np.stack([r, g, b], axis=-1)
 
-        # Blend: 60% original image + 40% heatmap (accentuating high-activation areas)
+        # Blend: 60% canvas image + 40% heatmap (accentuating high-activation areas)
         alpha = np.expand_dims(x * 0.65, axis=-1)
         blended = (1.0 - alpha) * img_np + alpha * heatmap
         blended = np.clip(blended * 255.0, 0, 255).astype(np.uint8)
@@ -93,9 +63,11 @@ class HiResCAMClassifier:
         return base64.b64encode(buffered.getvalue()).decode("utf-8")
 
     def classify_and_explain(self, pil_image: Image.Image) -> Dict[str, Any]:
-        if not self.is_loaded or self.model is None:
-            self._load()
-
+        """
+        Runs inference and generates HiResCAM explanation using the authoritative model.
+        Fails explicitly if the model is not loaded.
+        """
+        active_model = self.model  # Raises RuntimeError if unavailable
         start_time = time.time()
         input_tensor = preprocess_image(pil_image).to(self.device)
 
@@ -104,10 +76,11 @@ class HiResCAMClassifier:
         def hook(module, inp, out):
             features.append(out)
 
-        hook_handle = self.model.features.denseblock4.register_forward_hook(hook)
+        hook_handle = active_model.features.denseblock4.register_forward_hook(hook)
 
         # Forward pass
-        logits = self.model(input_tensor)
+        with torch.no_grad():
+            logits = active_model(input_tensor)
         hook_handle.remove()
 
         probs = F.softmax(logits, dim=1)[0].detach().cpu().numpy()
@@ -117,8 +90,8 @@ class HiResCAMClassifier:
 
         # Compute HiResCAM:
         # Uses element-wise product of feature maps and classifier weights for the target class
-        feat = features[0] # [1, 1024, H, W]
-        w = self.model.classifier.weight[pred_idx] # [1024]
+        feat = features[0]  # [1, 1024, H, W]
+        w = active_model.classifier.weight[pred_idx]  # [1024]
         
         # Element-wise product + channel summation with ReLU
         w_expanded = w.view(1, -1, 1, 1).to(self.device)
@@ -138,7 +111,7 @@ class HiResCAMClassifier:
 
         inference_time_ms = round((time.time() - start_time) * 1000, 2)
 
-        # Scientific explanations for classes
+        # Domain explanations for Alzheimer's MRI classification classes
         explanations = {
             "Mild Dementia": "High-activation gradients concentrated around hippocampal atrophy and cortical thinning characteristic of mild cognitive degeneration.",
             "Moderate Dementia": "Widespread bilateral temporal and ventricular expansion patterns detected, triggering heavy activation in ventricular margins.",
@@ -146,17 +119,23 @@ class HiResCAMClassifier:
             "Very mild Dementia": "Localized early-stage neuro-structural variances detected, predominantly in medial temporal lobe boundaries."
         }
 
+        model_version = (
+            model_registry.active_model_meta.get("version_tag", "centralized_densenet121_best")
+            if model_registry.active_model_meta
+            else "centralized_densenet121_best"
+        )
+
         return {
             "predicted_class": pred_label,
             "confidence": round(confidence, 4),
             "probabilities": {
                 IDX_TO_CLASS[i]: round(float(probs[i]), 4)
-                for i in range(len(CLASS_MAPPING))
+                for i in range(NUM_CLASSES)
             },
             "explanation": explanations.get(pred_label, "Salient regional activation identified by HiResCAM."),
             "hirescam_heatmap_base64": f"data:image/png;base64,{hirescam_base64}",
             "inference_time_ms": inference_time_ms,
-            "model_version": "global_round_001_densenet121",
+            "model_version": model_version,
             "xai_method": "HiResCAM (High-Resolution Class Activation Mapping)"
         }
 

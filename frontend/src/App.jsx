@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppLayout from './layouts/AppLayout';
 
+import LandingPage from './pages/LandingPage';
+import ArchitecturePage from './pages/ArchitecturePage';
 import Login from './pages/Login';
 import MRIAnalysis from './pages/MRIAnalysis';
 
@@ -16,7 +18,7 @@ import AdminAudit from './pages/admin/AdminAudit';
 import HospitalOverview from './pages/hospital/HospitalOverview';
 import HospitalMetrics from './pages/hospital/HospitalMetrics';
 
-function RootRedirect() {
+function DashboardRedirect() {
   const { user, isAuthenticated, loading } = useAuth();
   if (loading) return null;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
@@ -35,14 +37,13 @@ function App() {
           {/* Public Authentication Route */}
           <Route path="/login" element={<Login />} />
 
-          {/* Root redirect based on authenticated role */}
-          <Route path="/" element={<RootRedirect />} />
-
-          {/* Shared Authenticated Routes (Accessible to both Admin & Hospital Roles) */}
-          <Route element={<ProtectedRoute />}>
-            <Route element={<AppLayout />}>
-              <Route path="/analyze" element={<MRIAnalysis />} />
-            </Route>
+          {/* Public Discovery and Architecture Pages with AppLayout */}
+          <Route element={<AppLayout />}>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/architecture" element={<ArchitecturePage />} />
+            <Route path="/dashboard" element={<DashboardRedirect />} />
+            {/* Universal MRI Analysis with HiResCAM */}
+            <Route path="/analyze" element={<MRIAnalysis />} />
           </Route>
 
           {/* Admin Protected Workspaces */}
@@ -65,7 +66,7 @@ function App() {
           </Route>
 
           {/* Fallback Redirect */}
-          <Route path="*" element={<RootRedirect />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
     </AuthProvider>

@@ -1,6 +1,19 @@
 # NeuroLens Backend API
 
-Production-ready FastAPI backend for AI-assisted Alzheimer's MRI Detection using DenseNet121.
+Production-ready FastAPI backend for AI-assisted Alzheimer's MRI Detection and Explainable AI (HiResCAM) using DenseNet121.
+
+## Active Model & Centralized Checkpoint Integration
+- **Architecture**: DenseNet121 (`torchvision.models.densenet121`) with `nn.Linear(1024, 4)` head
+- **Training Mode**: Centralized training on Kaggle MRI dataset (10 epochs, AdamW lr=0.0001, Weighted Cross Entropy)
+- **Active Checkpoint Path**: `app/ml/weights/densenet121_best.pth`
+- **SHA-256 Checksum**: `f00e9d22212e68fadae8c50dc6d84cbe25727485cd9a55319d87889044eb43a8`
+- **Class Mapping**:
+  - `0`: Mild Dementia
+  - `1`: Moderate Dementia
+  - `2`: Non Demented
+  - `3`: Very mild Dementia
+- **Preprocessing**: Aspect-ratio-preserving resize (`thumbnail(224, 224, LANCZOS)`) centered onto a `224x224` black canvas followed by ImageNet normalization (`mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]`).
+- **Single Source of Truth**: `model_registry` deterministically loads the verified checkpoint strictly. Both normal prediction (`inference_engine`) and Explainable AI (`hirescam_engine`) share the exact same model weights and identical preprocessing. No random weights are ever substituted.
 
 ## Tech Stack
 - **Framework**: FastAPI
